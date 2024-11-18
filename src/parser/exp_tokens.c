@@ -40,7 +40,7 @@ static void	token_expand(expand_data *d, char *str, char **env_copy)
 	}
 }
 
-static char	*expand_var(char *str, char **env_copy)
+char	*expand_var(char *str, char **env_copy)
 {
 	expand_data	d;
 
@@ -82,7 +82,7 @@ char	**expand_vars(char **new_tokens, char **env_copy)
 		perror("pipe error");
 		return (NULL);
 	}
-	while (new_tokens[i])
+/* 	while (new_tokens[i])
 	{
 		if (new_tokens[i][0] == '|')
 		{
@@ -94,7 +94,7 @@ char	**expand_vars(char **new_tokens, char **env_copy)
 			}
 		}
 		i++;
-	}
+	} */
 	i = 0;
 	while (new_tokens[i])
 	{
@@ -122,6 +122,15 @@ char	**expand_vars(char **new_tokens, char **env_copy)
 	while (new_tokens[i])
 	{
 		len = ft_strlen(new_tokens[i]);
+		if (!strcmp(new_tokens[i], "\"|\"") || !strcmp(new_tokens[i], "\">\"") || \
+			!strcmp(new_tokens[i], "\"<\"") || !strcmp(new_tokens[i], "\">>\"") || \
+			!strcmp(new_tokens[i], "\"<<\""))
+		{
+			exp_tokens[i] = ft_strdup(new_tokens[i]);
+			free(new_tokens[i]);
+			i++;
+			continue;
+		}
 		var = expand_var(ft_strndup(new_tokens[i], len), env_copy);
 		free(new_tokens[i]);
 		exp_tokens[i] = var;

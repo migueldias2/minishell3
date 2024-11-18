@@ -13,31 +13,45 @@ void free_redirections(t_redirection *redir)
 	}
 }
 
-void free_ast(t_ast_node *node)
+void free_ast(t_token_node **node)
 {
-	if (!node)
-		return;
-	if (node->left)
+	t_token_node	*cur;
+	t_token_node	*temp;
+	int i;
+
+	cur = *node;
+	if (cur)
 	{
-		free_ast(node->left);
-	}
-	if (node->right)
-	{
-		free_ast(node->right);
-	}
-	if (node->args)
-	{
-		int i = 0;
-		while (node->args[i] != NULL)
+		while(cur)
 		{
-			free(node->args[i]);
-			node->args[i] = NULL;
-			i++;
+			temp = cur->next;
+			if (cur->tokens)
+			{
+				i = 0;
+				while (cur->tokens[i])
+				{
+					free(cur->tokens[i]);
+					cur->tokens[i] = NULL;
+					i++;
+				}
+				free(cur->tokens);
+				cur->tokens = NULL;
+			}
+			if (cur->args)
+			{
+				i = 0;
+				while (cur->args[i] != NULL)
+				{
+					free(cur->args[i]);
+					cur->args[i] = NULL;
+					i++;
+				}
+				free(cur->args);
+				cur->args = NULL;
+			}
+			free_redirections(cur->redirs);
+			free(cur);
+			cur = temp;
 		}
-		free(node->args);
-		node->args = NULL;
 	}
-	free_redirections(node->redirs);
-	free(node);
-	node = NULL;
 }

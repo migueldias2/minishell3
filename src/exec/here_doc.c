@@ -2,13 +2,21 @@
 #include "../../inc/minishell.h"
 
 
-int	here_doc(char *str)
+int	here_doc(t_mini *mini, char *str)
 {
-	char	buffer[BUFFER_SIZE];
-	int		fd;
-	ssize_t	bytes_read;
+	char		buffer[BUFFER_SIZE];
+	int			fd;
+	ssize_t		bytes_read;
+	char		*num_str;
+	char		filename[50];
 
-	fd = open("temp.txt", O_CREAT | O_WRONLY | O_TRUNC, 0777);
+	num_str = ft_itoa(mini->num);
+	ft_strlcpy(filename, "temp", sizeof(filename));
+	ft_strlcat(filename, num_str, sizeof(filename));
+	free(num_str);
+	mini->filenames[mini->num] = strdup(filename);
+	mini->num++;
+	fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
 	if (fd == -1)
 		perror("error failed to open");
 	while (1)
@@ -25,8 +33,8 @@ int	here_doc(char *str)
 		write(fd, buffer, bytes_read);
 	}
 	close(fd);
-	fd = open("temp.txt", O_RDONLY);
-	dup2(fd, STDIN_FILENO);
-	unlink("temp.txt");
+	fd = open(filename, O_RDONLY);
+	/* dup2(fd, STDIN_FILENO);
+	unlink("temp.txt"); */
 	return (fd);
 }

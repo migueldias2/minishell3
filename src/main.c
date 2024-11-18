@@ -84,7 +84,7 @@ bool	if_stats_input(t_mini *mini)
 	if (*mini->line)
 	{
 		add_history(mini->line);
-		if (ft_strcmp(mini->line, "exit") == 0)
+		if (ft_strncmp(mini->line, "exit", 4) == 0)
 		{
 			printf("exit\n");
 			ft_exit(mini);
@@ -96,33 +96,25 @@ bool	if_stats_input(t_mini *mini)
 
 void	init_mini(t_mini *mini)
 {
+	int i;
+
 	mini->new_tokens = NULL;
 	mini->exp_tokens = NULL;
 	mini->env = NULL;
 	mini->line = NULL;
 	mini->args = NULL;
 	mini->shlvl = 0;
-}
-
-void free_token_list(t_token_node *head)
-{
-    t_token_node *current = head;
-    t_token_node *next;
-
-    while (current != NULL)
+	mini->file_count = 0;
+	mini->num = 0;
+	mini->nr_pipes = 0;
+	i = 0;
+    while (i < 100)
 	{
-		next = current->next;
-        for (int i = 0; current->tokens[i] != NULL; i++) {
-            free(current->tokens[i]);
-			current->tokens[i] = NULL;  // Free each string in the tokens array
-        }
-        free(current->tokens);
-		current->tokens = NULL;  // Finally, free the array of tokens itself
-
-        free(current);
-        current = next;  // Move to the next node
+        mini->filenames[i] = NULL;
+        i++;
     }
 }
+
 
 void print_token_list(t_token_node *head)
 {
@@ -144,9 +136,68 @@ void print_token_list(t_token_node *head)
     }
 }
 
-void	shell_looping(t_mini *mini, t_ast_node *ast_root)
+void	print_nodes(t_token_node *sliced_tokens_list)
+{
+	t_token_node	*cur;
+	t_redirection	*redir;
+	int				i;
+	int	j;
+
+	i = 0;
+	cur = sliced_tokens_list;
+	while (cur)
+	{
+		
+		printf("node[%d]: \n", i);
+		if (cur->cmd)
+			printf("cmd -> %s\n", cur->cmd);
+		j = 0;
+		if (cur->args)
+		{
+			while(cur->args[j])
+			{
+				printf("arg[%d]->%s\n", j, cur->args[j]);
+				j++;
+			}
+		}
+		if (cur->redirs)
+		{
+			redir = cur->redirs;
+			while (redir)
+			{
+				printf("redir->%d, %s\n", redir->type, redir->target);
+				redir = redir->next;
+			}
+		}
+		printf("outfile %d\n", cur->outfile);
+		printf("infile %d\n", cur->infile);
+		cur = cur->next;
+		i++;
+		printf("\n");
+	}
+}
+
+void cleanup_heredoc_files(t_mini *mini)
+{
+    int i;
+
+	i = 0;
+    while (i < 100)
+	{
+		if (mini->filenames[i])
+        {
+			unlink(mini->filenames[i]);
+        	free(mini->filenames[i]);
+        	mini->filenames[i] = NULL;
+		}
+        i++;
+    }
+}
+
+void	shell_looping(t_mini *mini)
 {
 	t_token_node *sliced_tokens_list;
+
 	while (1)
 	{
 		mini->line = readline("minishell> ");
@@ -160,24 +211,40 @@ void	shell_looping(t_mini *mini, t_ast_node *ast_root)
 			free(mini->line);
 			continue;
 		}
+		/* int i = 0; */
 		mini->exp_tokens = expand_vars(mini->new_tokens, mini->env);
 		if (!mini->exp_tokens)
 		{
 			free_all(mini->new_tokens, mini->line);
 			continue;
 		}
-		/* int i = 0;
+		/* i = 0;
 		while (mini->exp_tokens[i])
 		{
 			printf("%s\n", mini->exp_tokens[i]);
 			i++;
 		} */
 		sliced_tokens_list = NULL;
-		ast_root = parse_tokens(mini->exp_tokens, &sliced_tokens_list);
-		/* print_token_list(sliced_tokens_list); */
-		execute_ast(ast_root, mini);
-		free_token_list(sliced_tokens_list);
-		free_ast(ast_root);
+		
+		if (*mini->line)
+		{
+			parse_tokens(mini->exp_tokens, &sliced_tokens_list);
+			final_sliced_list(&sliced_tokens_list);
+			/* print_token_list(sliced_tokens_list); */
+			mini->nr_pipes = 0;
+			fill_redirs_cmd_args(&sliced_tokens_list, mini);
+			mini->nr_pipes--;
+			/* printf("%d\n", mini->nr_pipes); */
+			fill_redirs(sliced_tokens_list, mini);
+			/* print_nodes(sliced_tokens_list); */
+			execute(sliced_tokens_list, mini);
+		}
+		
+		
+		
+		
+		free_ast(&sliced_tokens_list);
+		cleanup_heredoc_files(mini);
 		free_all(mini->exp_tokens, mini->line);
 	}
 }
@@ -185,7 +252,6 @@ void	shell_looping(t_mini *mini, t_ast_node *ast_root)
 
 int main(int ac, char **av, char **env)
 {
-	t_ast_node *ast_root;
 	t_mini		*mini;
 
 	mini = malloc(sizeof(t_mini));
@@ -194,14 +260,12 @@ int main(int ac, char **av, char **env)
 	(void)ac;
 	(void)av;
 	init_mini(mini);
-	ast_root = NULL;
 	if (!env)
    		init_myown_envp(mini);
     else
    		init_envp(mini, env);
-	shell_looping(mini, ast_root);
-	ft_close_all_fds(mini);
-	free_ast(ast_root);
+	shell_looping(mini);
+	/* ft_close_all_fds(mini); */
 	free(mini);
 	return (0);
 }

@@ -1,7 +1,7 @@
 
 #include "../../inc/minishell.h"
 
-t_ast_node	*new_ast_node(int type, char *command, char **args)
+/* t_ast_node	*new_ast_node(int type, char *command, char **args)
 {
 	t_ast_node	*node;
 
@@ -15,7 +15,7 @@ t_ast_node	*new_ast_node(int type, char *command, char **args)
 	node->right = NULL;
 	node->redirs = NULL;
 	return (node);
-}
+} */
 
 t_redirection	*new_redirection(int type ,char *target)
 {
@@ -30,7 +30,7 @@ t_redirection	*new_redirection(int type ,char *target)
 	return (redir);
 }
 
-void	add_redirection(t_ast_node *node, int type, char *target)
+void	add_redirection(t_token_node *node, int type, char *target)
 {
 	t_redirection	*redir;
 	t_redirection	*temp;
@@ -105,97 +105,153 @@ t_token_node *add_token_to_list(t_token_node *head, char **tokens)
 	}
 	new_node->tokens = tokens;
 	new_node->next = NULL;
+	new_node->cmd = NULL;
+	new_node->previous = NULL;
+	new_node->redirs = NULL;
+	new_node->args = NULL;
+	new_node->infile = STDIN_FILENO;
+	new_node->outfile = STDOUT_FILENO;
 	if (head == NULL)
 		return new_node;
 	current = head;
 	while (current->next != NULL)
 		current = current->next;
 	current->next = new_node;
+	current->next->previous = current;
 	return head;
 }
 
-
-t_ast_node	*parse_tokens(char **tokens, t_token_node **sliced_tokens_list)
+void	expand_args(char **args, char **env_copy)
 {
-	int			pipe_index;
-	t_ast_node	*node;
-	int			cmd_index;
-	int			i;
-	int			redir_type;
-	char		**left_slice;
-	char		**right_slice;
+	int		i;
+	int		len;
+	char	*str;
 
 	i = 0;
-	node = NULL;
-	cmd_index = -1;
-	pipe_index = find_pipe(tokens);
-	if (pipe_index != -1)
+	while (args[i])
 	{
-		node = new_ast_node(PIPE, NULL, NULL);
-		left_slice = slice_tokens(tokens, 0, pipe_index);
-		right_slice = slice_tokens(tokens, pipe_index + 1, -1);
-
-		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, left_slice);
-		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, right_slice);
-
-		node->left = parse_tokens(left_slice, sliced_tokens_list);
-		node->right = parse_tokens(right_slice, sliced_tokens_list);
-		return (node);
-	}
-
-	while (tokens[i] != NULL)
-	{
-    	redir_type = get_redir_type(tokens[i]);
-    	if (redir_type == HEREDOC)
+		len = ft_strlen(args[i]);
+		if (!strcmp(args[i], "\"|\"") || !strcmp(args[i], "\">\"") || \
+			!strcmp(args[i], "\"<\"") || !strcmp(args[i], "\">>\"") || \
+			!strcmp(args[i], "\"<<\""))
 		{
-        	if (tokens[i + 1] == NULL)
-            	perror("Syntax error: missing file for redirection");
-        	if (!node)
-				node = new_ast_node(CMD, NULL, NULL);
-            add_redirection(node, HEREDOC, tokens[i + 1]);
-            i += 2;
-        }
-		else
-            i++;
-	}
-	i = 0;
-	while (tokens[i] != NULL)
-	{
-    	redir_type = get_redir_type(tokens[i]);
-    	if (redir_type != -1 && redir_type != HEREDOC)
-		{
-        	if (tokens[i + 1] == NULL)
-            	perror("Syntax error: missing file for redirection");
-			if (!node)
-				node = new_ast_node(CMD, NULL, NULL);
-            add_redirection(node, redir_type, tokens[i + 1]);
-            i += 2;
-    	}
+			str = ft_strdup(args[i]);
+			free(args[i]);
+			args[i] = expand_var(ft_strndup(str, len), env_copy);
+			free(str);
+			i++;
+		}
 		else
 			i++;
 	}
-	i = 0;
-	while (tokens[i] != NULL)
-	{
-		redir_type = get_redir_type(tokens[i]);
-		if (redir_type != -1)
-			i += 2;
-		else
-		{
-			cmd_index = i;
-			break;
-		}
-	}
+}
 
-	if (cmd_index != -1)
+void	final_sliced_list(t_token_node **sliced_tokens_list)
+{
+	int				i;
+	t_token_node	*current;
+	t_token_node	*temp_next;
+
+	current = *sliced_tokens_list;
+	i = 0;
+	while(current)
 	{
-    	if (!node)
-			node = new_ast_node(CMD, tokens[cmd_index], slice_tokens(tokens, cmd_index, -1));
-		else
+		temp_next = current->next;
+		if (i % 2 != 0)
 		{
-			node->cmd = tokens[cmd_index];
-			node->args = filter(slice_tokens(tokens, cmd_index, -1));
+			if (current->previous) // If there is a previous node
+				current->previous->next = current->next;
+			else // If there is no previous node, we're removing the head
+				*sliced_tokens_list = current->next;
+			if (current->next)
+				current->next->previous = current->previous;
+			free_args(current->tokens);
+			free(current);
 		}
+		current = temp_next;
+		i++;
 	}
-	return node;
+}
+
+void	parse_tokens(char **tokens, t_token_node **sliced_tokens_list)
+{
+	pt_data data;
+
+	data.pipe_index = find_pipe(tokens);
+	if (data.pipe_index != -1)
+	{
+		data.left_slice = slice_tokens(tokens, 0, data.pipe_index);
+		data.right_slice = slice_tokens(tokens, data.pipe_index + 1, -1);
+
+		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, data.left_slice);
+		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, data.right_slice);
+
+		parse_tokens(data.right_slice, sliced_tokens_list);
+	}
+	else
+		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, slice_tokens(tokens, 0, -1));
+}
+
+void	fill_redirs_cmd_args(t_token_node **sliced_tokens_list, t_mini *mini)
+{
+	t_token_node	*cur;
+	int				i;
+	int				redir_type;
+	int				cmd_index;
+
+	cur = *sliced_tokens_list;
+	
+	while (cur)
+	{
+		i = 0;
+		cmd_index = -1;
+		while (cur->tokens[i] != NULL)
+		{
+			redir_type = get_redir_type(cur->tokens[i]);
+			if (redir_type == HEREDOC)
+			{
+				if (cur->tokens[i + 1] == NULL)
+					perror("Syntax error: missing file for redirection");
+				add_redirection(cur, HEREDOC, cur->tokens[i + 1]);
+				i += 2;
+			}
+			else
+				i++;
+		}
+		i = 0;
+		while (cur->tokens[i] != NULL)
+		{
+			redir_type = get_redir_type(cur->tokens[i]);
+			if (redir_type != -1 && redir_type != HEREDOC)
+			{
+				if (cur->tokens[i + 1] == NULL)
+					perror("Syntax error: missing file for redirection");
+				add_redirection(cur, redir_type, cur->tokens[i + 1]);
+				i += 2;
+			}
+			else
+				i++;
+		}
+		i = 0;
+		while (cur->tokens[i] != NULL)
+		{
+			redir_type = get_redir_type(cur->tokens[i]);
+			if (redir_type != -1)
+				i += 2;
+			else
+			{
+				cmd_index = i;
+				break;
+			}
+		}
+
+		if (cmd_index != -1)
+		{
+			cur->cmd = cur->tokens[cmd_index];
+			cur->args = filter(slice_tokens(cur->tokens, cmd_index, -1));
+			expand_args(cur->args, mini->env);
+		}
+		cur = cur->next;
+		mini->nr_pipes++;
+	}
 }

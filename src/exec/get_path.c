@@ -19,36 +19,37 @@ void	ft_free(char *list[])
 	free(list);
 }
 
-char	*get_env()
+char	*get_env(char **env)
 {
 	int	i = 0;
 
-	while (environ[i])
+	while (env[i])
 	{
 		// Find the PATH environment variable
-		if (ft_strncmp(environ[i], "PATH=", 5) == 0)
-			return (environ[i] + 5);  // Return everything after "PATH="
+		if (ft_strncmp(env[i], "PATH=", 5) == 0)
+			return (env[i] + 5);  // Return everything after "PATH="
 		i++;
 	}
 	return (NULL);
 }
 
-char	*get_path(char *cmd)
+char	*get_path(char *cmd, char **env)
 {
-	int		i = 0;
+	int		i;
 	char	*exec;
 	char	**allpath;
 	char	*path_part;
 	char	*env_path;
 
-	if (!cmd)
+	if (!cmd || !*cmd)
         return NULL;
-	env_path = get_env();
+	env_path = get_env(env);
 	if (!env_path)
-		return (cmd);
+		return (NULL);
 	allpath = ft_split(env_path, ':');
 	if (!allpath)
-		return (cmd);
+		return (NULL);
+	i = 0;
 	while (allpath[i])
 	{
 		path_part = ft_strjoin(allpath[i], "/");
@@ -63,5 +64,5 @@ char	*get_path(char *cmd)
 		i++;
 	}
 	ft_free(allpath);
-	return (cmd);  // Return cmd if not found in PATH
+	return (NULL);  // Return cmd if not found in PATH
 }

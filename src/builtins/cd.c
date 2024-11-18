@@ -1,7 +1,7 @@
 
 #include "../../inc/minishell.h"
 
-void ft_cd(t_ast_node *node ,t_mini *mini)
+/* void ft_cd(t_ast_node *node ,t_mini *mini)
 {
 	char *home;
 	char *pwd;
@@ -67,4 +67,4 @@ void ft_cd(t_ast_node *node ,t_mini *mini)
 	}
 	free(pwd);
 	free(home);
-}
+} */
