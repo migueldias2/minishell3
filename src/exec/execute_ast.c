@@ -148,16 +148,11 @@ void	do_last_command(t_token_node *cur, t_mini *mini)
 
 }
 
-void	do_pipe(t_token_node *cur, t_mini *mini)
+
+void	do_pipe(t_token_node *cur, t_mini *mini, int *i, int *infd)
 {
 	pid_t	pid;
-	int		pipe_fd[2];
 
-	if (pipe(pipe_fd) == -1)
-	{
-		perror("error pipe");
-    	exit(EXIT_FAILURE);
-	}
 	pid = fork();
 	if (pid == -1)
 	{
@@ -166,39 +161,60 @@ void	do_pipe(t_token_node *cur, t_mini *mini)
 	}
 	if (pid == 0)
 	{
-		close(pipe_fd[0]);
-		dup2(pipe_fd[1], STDOUT_FILENO);
-		close(pipe_fd[1]);
+		if (*i != 0)
+			dup2(*infd, STDIN_FILENO);
+		if (*i != mini->nr_pipes)
+			dup2(mini->pipe_fd[1], STDOUT_FILENO);
+		close(mini->pipe_fd[0]);
+		close(mini->pipe_fd[1]);
 		if (cur->infile != 0)
 		{
 			dup2(cur->infile, STDIN_FILENO);
+			close(cur->infile);
 		}
 		if (cur->outfile != 1)
 		{
 			dup2(cur->outfile, STDOUT_FILENO);
+			close(cur->outfile);
 		}
 		exec(cur, mini);
 	}
 	else
 	{
-		close(pipe_fd[1]);
-		dup2(pipe_fd[0], STDIN_FILENO);
-		close(pipe_fd[0]);
+		*infd = mini->pipe_fd[0];
+		close(mini->pipe_fd[1]);
+		if (cur->infile != 0)
+		{
+			close(cur->infile);
+		}
+		if (cur->outfile != 1)
+		{
+			close(cur->outfile);
+		}
 	}
 }
 
 void	execute(t_token_node *sliced_tokens_list, t_mini *mini)
 {
 	t_token_node	*cur;
+	int				i;
+	int				infd;
 
+	i = 0;
 	cur = sliced_tokens_list;
-	while (cur->next != NULL)
+	while (cur)
 	{
-		do_pipe(cur, mini);
+		if (pipe(mini->pipe_fd) == -1)
+		{
+			perror("error pipe");
+		}
+		do_pipe(cur, mini, &i, &infd);
 		cur = cur->next;
+		i++;
 	}
-	do_last_command(cur, mini);
-	while ((wait(NULL)) > 0);
+	close(mini->pipe_fd[0]);
+	/* do_last_command(cur, mini); */
+	/* while ((wait(NULL)) > 0); */
 }
 
 void	fill_redirs(t_token_node *node, t_mini *mini)
