@@ -31,6 +31,26 @@
 # define ENV 12
 # define BUFFER_SIZE 1024
 
+
+typedef struct s_redir
+{
+	int					type;
+	char				*target;
+	struct s_redir		*next;
+}	t_redir;
+
+typedef struct s_node
+{
+    char 				**tokens;
+	char				*cmd;
+	char				**args;
+	t_redir 		*redirs;
+	int					infile;
+	int					outfile;
+    struct s_node	*next;
+	struct s_node	*previous;
+}	t_node;
+
 typedef struct s_mini
 {
 	char		**new_tokens;
@@ -42,30 +62,13 @@ typedef struct s_mini
 	int 		exit_status;
 	int			pipe_fd[2];
 	char		*filenames[100];
+	pid_t		pids[1024];
 	int			file_count;
 	int			num;
 	int			nr_pipes;
+	t_node		*cur;
+	t_redir		*redir;
 }	t_mini;
-
-typedef struct s_redirection
-{
-	int					type;
-	char				*target;
-	struct s_redirection *next;
-}	t_redirection;
-
-typedef struct s_token_node
-{
-    char 				**tokens;
-	char				*cmd;
-	char				**args;
-	t_redirection 		*redirs;
-	int					infile;
-	int					outfile;
-    struct s_token_node	*next;
-	struct s_token_node	*previous;
-}	t_token_node;
-
 
 
 typedef struct
@@ -138,25 +141,25 @@ char			**expand_vars(char **new_tokens, char **env_copy);
 char			*expand_var(char *str, char **env_copy);
 char			**slice_tokens(char **tokens, int i, int end);
 /* t_ast_node		*new_ast_node(int type, char *command, char **args); */
-void			parse_tokens(char **tokens, t_token_node **sliced_tokens_list);
+void			parse_tokens(char **tokens, t_node **sliced_tokens_list);
 int				find_pipe(char **tokens);
 bool 			check_for_unclosed_quotes(char *input);
 int 			semicolon_checker(char *str);
 bool 			checker_quotes(char *input);
-void			final_sliced_list(t_token_node **sliced_tokens_list);
-void			fill_redirs_cmd_args(t_token_node **sliced_tokens_list, t_mini *mini);
+void			final_sliced_list(t_node **sliced_tokens_list);
+void			fill_redirs_cmd_args(t_node **sliced_tokens_list, t_mini *mini);
 
 //REDIR
-t_redirection	*new_redirection(int type ,char *target);
+t_redir	*new_redirection(int type ,char *target);
 /* int				noredirs_orheredoc_singlestdin(t_ast_node *node);
 void			handle_redirections(t_ast_node *node); */
 
 
 //EXEC
-void			execute(t_token_node *sliced_tokens_list, t_mini *mini);
+void			execute(t_node *sliced_tokens_list, t_mini *mini);
 char			*path_find(char **envp, char *cmd);
 /*  void			exec(t_mini *mini); */
-void			fill_redirs(t_token_node *node, t_mini *mini);
+void			open_redirs(t_node *node, t_mini *mini);
 char			*get_path(char *cmd, char **env);
 
 //UTILS
@@ -165,8 +168,8 @@ void			free_args(char **args);
 void 			free_2_all(char **args1, char **args2);
 void			ft_free_env(char **env);
 void			free_sliced(char **sliced, int count);
-void			free_ast(t_token_node **sliced_tokens_list);
-/* void			ft_close_all_fds(t_mini *mini); */
+void			free_ast(t_node **sliced_tokens_list);
+void			ft_close_all_fds(t_mini *mini);
 void			ft_close(int fd);
 /* void 			print_ast(t_ast_node *root); */
 

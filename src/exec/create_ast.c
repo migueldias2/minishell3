@@ -17,11 +17,11 @@
 	return (node);
 } */
 
-t_redirection	*new_redirection(int type ,char *target)
+t_redir	*new_redirection(int type ,char *target)
 {
-	t_redirection *redir;
+	t_redir *redir;
 
-	redir = malloc(sizeof(t_redirection));
+	redir = malloc(sizeof(t_redir));
 	if (!redir)
 		return (NULL);
 	redir->type = type;
@@ -30,10 +30,10 @@ t_redirection	*new_redirection(int type ,char *target)
 	return (redir);
 }
 
-void	add_redirection(t_token_node *node, int type, char *target)
+void	add_redirection(t_node *node, int type, char *target)
 {
-	t_redirection	*redir;
-	t_redirection	*temp;
+	t_redir	*redir;
+	t_redir	*temp;
 
 	temp = NULL;
 	redir = new_redirection(type, target);
@@ -92,12 +92,12 @@ char **filter(char **tokens)
 	return tokens;
 }
 
-t_token_node *add_token_to_list(t_token_node *head, char **tokens)
+t_node *add_token_to_list(t_node *head, char **tokens)
 {
-	t_token_node	*new_node;
-	t_token_node	*current;
+	t_node	*new_node;
+	t_node	*current;
 
-	new_node = malloc(sizeof(t_token_node));
+	new_node = malloc(sizeof(t_node));
 	if (!new_node)
 	{
 		perror("Memory allocation-LIST error");
@@ -146,11 +146,11 @@ void	expand_args(char **args, char **env_copy)
 	}
 }
 
-void	final_sliced_list(t_token_node **sliced_tokens_list)
+void	final_sliced_list(t_node **sliced_tokens_list)
 {
 	int				i;
-	t_token_node	*current;
-	t_token_node	*temp_next;
+	t_node	*current;
+	t_node	*temp_next;
 
 	current = *sliced_tokens_list;
 	i = 0;
@@ -173,7 +173,7 @@ void	final_sliced_list(t_token_node **sliced_tokens_list)
 	}
 }
 
-void	parse_tokens(char **tokens, t_token_node **sliced_tokens_list)
+void	parse_tokens(char **tokens, t_node **sliced_tokens_list)
 {
 	pt_data data;
 
@@ -192,15 +192,15 @@ void	parse_tokens(char **tokens, t_token_node **sliced_tokens_list)
 		*sliced_tokens_list = add_token_to_list(*sliced_tokens_list, slice_tokens(tokens, 0, -1));
 }
 
-void	fill_redirs_cmd_args(t_token_node **sliced_tokens_list, t_mini *mini)
+void	fill_redirs_cmd_args(t_node **sliced_tokens_list, t_mini *mini)
 {
-	t_token_node	*cur;
+	t_node	*cur;
 	int				i;
 	int				redir_type;
 	int				cmd_index;
 
 	cur = *sliced_tokens_list;
-	
+
 	while (cur)
 	{
 		i = 0;

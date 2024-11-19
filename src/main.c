@@ -113,12 +113,19 @@ void	init_mini(t_mini *mini)
         mini->filenames[i] = NULL;
         i++;
     }
+	i = 0;
+	while (i < 1024)
+	{
+		mini->pids[i] = -1;
+		i++;
+	}
+
 }
 
 
-void print_token_list(t_token_node *head)
+void print_token_list(t_node *head)
 {
-    t_token_node *current;
+    t_node *current;
 	int i;
 	int	j = 0;
 
@@ -136,10 +143,10 @@ void print_token_list(t_token_node *head)
     }
 }
 
-void	print_nodes(t_token_node *sliced_tokens_list)
+void	print_nodes(t_node *sliced_tokens_list)
 {
-	t_token_node	*cur;
-	t_redirection	*redir;
+	t_node	*cur;
+	t_redir	*redir;
 	int				i;
 	int	j;
 
@@ -147,7 +154,7 @@ void	print_nodes(t_token_node *sliced_tokens_list)
 	cur = sliced_tokens_list;
 	while (cur)
 	{
-		
+
 		printf("node[%d]: \n", i);
 		if (cur->cmd)
 			printf("cmd -> %s\n", cur->cmd);
@@ -194,9 +201,45 @@ void cleanup_heredoc_files(t_mini *mini)
     }
 }
 
+void	heredoc_last(t_node **sliced_tokens_list)
+{
+	t_node	*cur;
+	t_node	*temp;
+
+	cur = *sliced_tokens_list;
+	if (!cur->next)
+		return ;
+	while (cur)
+	{
+		if (cur->redirs && cur->redirs->type == HEREDOC)
+		{
+			if (cur->previous)
+			{
+				cur->previous->next = cur->next;
+				if (cur->next)
+					cur->next->previous = cur->previous;
+			}
+			else
+			{
+				*sliced_tokens_list = cur->next;
+				if (cur->next)
+					cur->next->previous = NULL;
+			}
+			temp = cur;
+			while (cur->next)
+				cur = cur->next;
+			cur->next = temp;
+			temp->previous = cur;
+			temp->next = NULL;
+			break;
+		}
+		cur = cur->next;
+	}
+}
+
 void	shell_looping(t_mini *mini)
 {
-	t_token_node *sliced_tokens_list;
+	t_node *sliced_tokens_list;
 
 	while (1)
 	{
@@ -225,7 +268,7 @@ void	shell_looping(t_mini *mini)
 			i++;
 		} */
 		sliced_tokens_list = NULL;
-		
+
 		if (*mini->line)
 		{
 			parse_tokens(mini->exp_tokens, &sliced_tokens_list);
@@ -235,14 +278,17 @@ void	shell_looping(t_mini *mini)
 			fill_redirs_cmd_args(&sliced_tokens_list, mini);
 			mini->nr_pipes--;
 			/* printf("%d\n", mini->nr_pipes); */
-			fill_redirs(sliced_tokens_list, mini);
+			open_redirs(sliced_tokens_list, mini);
+
+			heredoc_last(&sliced_tokens_list);
 			/* print_nodes(sliced_tokens_list); */
 			execute(sliced_tokens_list, mini);
+
 		}
-		
-		
-		
-		
+
+
+
+
 		free_ast(&sliced_tokens_list);
 		cleanup_heredoc_files(mini);
 		free_all(mini->exp_tokens, mini->line);

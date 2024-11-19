@@ -1,8 +1,8 @@
 #include "../inc/minishell.h"
 
-void free_redirections(t_redirection *redir)
+void free_redirections(t_redir *redir)
 {
-	t_redirection *temp;
+	t_redir *temp;
 
 	while (redir)
 	{
@@ -13,10 +13,10 @@ void free_redirections(t_redirection *redir)
 	}
 }
 
-void free_ast(t_token_node **node)
+void free_ast(t_node **node)
 {
-	t_token_node	*cur;
-	t_token_node	*temp;
+	t_node	*cur;
+	t_node	*temp;
 	int i;
 
 	cur = *node;
