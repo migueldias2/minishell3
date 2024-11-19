@@ -30,6 +30,7 @@ SRC_FILES = $(SRC_DIR)/main.c \
             $(EXEC_DIR)/execute_ast.c \
             $(EXEC_DIR)/create_ast.c \
             $(EXEC_DIR)/get_path.c \
+            $(EXEC_DIR)/fill_redirs.c \
             $(EXEC_DIR)/here_doc.c \
             $(PARSER_DIR)/tokenize.c \
             $(PARSER_DIR)/exp_tokens.c \
